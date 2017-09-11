@@ -16,6 +16,7 @@ set(MBGL_TEST_FILES
     test/api/annotations.test.cpp
     test/api/api_misuse.test.cpp
     test/api/custom_layer.test.cpp
+    test/api/custom_vector_source.test.cpp
     test/api/query.test.cpp
     test/api/recycle_map.cpp
     test/api/zoom_history.cpp
@@ -112,6 +113,7 @@ set(MBGL_TEST_FILES
 
     # tile
     test/tile/annotation_tile.test.cpp
+    test/tile/custom_tile.test.cpp
     test/tile/geojson_tile.test.cpp
     test/tile/geometry_tile_data.test.cpp
     test/tile/raster_tile.test.cpp
