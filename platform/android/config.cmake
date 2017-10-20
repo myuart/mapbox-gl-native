@@ -178,6 +178,8 @@ add_library(mbgl-android STATIC
     platform/android/src/style/layers/unknown_layer.hpp
     platform/android/src/style/sources/geojson_source.cpp
     platform/android/src/style/sources/geojson_source.hpp
+    platform/android/src/style/sources/custom_vector_source.cpp
+    platform/android/src/style/sources/custom_vector_source.hpp
     platform/android/src/style/sources/source.cpp
     platform/android/src/style/sources/source.hpp
     platform/android/src/style/sources/sources.cpp
