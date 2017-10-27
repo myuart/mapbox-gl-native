@@ -2,6 +2,7 @@
 
 #include <mbgl/style/sources/custom_vector_source.hpp>
 #include <mbgl/tile/tile_id.hpp>
+#include <mbgl/util/geo.hpp>
 #include <mbgl/util/geojson.hpp>
 #include <mbgl/actor/actor_ref.hpp>
 
@@ -25,6 +26,9 @@ public:
 
     void removeTile(const OverscaledTileID& tileID);
     void setTileData(const CanonicalTileID& tileID, const GeoJSON& data);
+
+    void invalidateTile(const CanonicalTileID&);
+    void invalidateRegion(const LatLngBounds&, Range<uint8_t>);
 
 private:
     void invokeTileFetch(const CanonicalTileID& tileID);

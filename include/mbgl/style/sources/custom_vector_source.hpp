@@ -1,6 +1,7 @@
 #pragma once
 
 #include <mbgl/style/source.hpp>
+#include <mbgl/util/geo.hpp>
 #include <mbgl/util/geojson.hpp>
 #include <mbgl/util/range.hpp>
 #include <mbgl/util/constants.hpp>
@@ -36,7 +37,8 @@ public:
     ~CustomVectorSource() final;
     void loadDescription(FileSource&) final;
     void setTileData(const CanonicalTileID&, const GeoJSON&);
-
+    void invalidateTile(const CanonicalTileID&);
+    void invalidateRegion(const LatLngBounds&);
     // Private implementation
     class Impl;
     const Impl& impl() const;

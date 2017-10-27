@@ -36,6 +36,8 @@ void CustomTile::setTileData(const GeoJSON& geoJSON) {
         vtOptions.buffer = std::round(scale * options.buffer);
         vtOptions.tolerance = scale * options.tolerance;
         featureData = mapbox::geojsonvt::geoJSONToTile(geoJSON, id.canonical.z, id.canonical.x, id.canonical.y, vtOptions).features;
+    } else {
+        setNecessity(TileNecessity::Optional);
     }
     setData(std::make_unique<GeoJSONTileData>(std::move(featureData)));
 }

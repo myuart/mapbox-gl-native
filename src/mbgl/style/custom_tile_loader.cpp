@@ -67,6 +67,37 @@ void CustomTileLoader::setTileData(const CanonicalTileID& tileID, const GeoJSON&
     }
 }
 
+void CustomTileLoader::invalidateTile(const CanonicalTileID& tileID) {
+    auto tileCallbacks = tileCallbackMap.find(tileID);
+    if (tileCallbacks == tileCallbackMap.end()) { return; }
+    for (auto iter = tileCallbacks->second.begin(); iter != tileCallbacks->second.end(); iter++) {
+        auto actor = std::get<2>(*iter);
+        actor.invoke(&SetTileDataFunction::operator(), mapbox::geojson::feature_collection());
+        invokeTileCancel(tileID);
+    }
+    tileCallbackMap.erase(tileCallbacks);
+    {
+        std::lock_guard<std::mutex> lock(dataCacheMutex);
+        dataCache.erase(tileID);
+    }
+}
+
+void CustomTileLoader::invalidateRegion(const LatLngBounds& bounds, Range<uint8_t> ) {
+    for(auto idtuple= tileCallbackMap.begin(); idtuple != tileCallbackMap.end(); idtuple++) {
+        const LatLngBounds tileBounds(idtuple->first);
+        if (tileBounds.intersects(bounds) || bounds.contains(tileBounds) || tileBounds.contains(bounds)) {
+            for (auto iter = idtuple->second.begin(); iter != idtuple->second.end(); iter++) {
+                std::lock_guard<std::mutex> lock(dataCacheMutex);
+                auto actor = std::get<2>(*iter);
+                actor.invoke(&SetTileDataFunction::operator(), mapbox::geojson::feature_collection());
+                invokeTileCancel(idtuple->first);
+                dataCache.erase(idtuple->first);
+            }
+            idtuple->second.clear();
+        }
+    }
+}
+
 void CustomTileLoader::invokeTileFetch(const CanonicalTileID& tileID) {
     if (fetchTileFunction != nullptr) {
         fetchTileFunction(tileID);

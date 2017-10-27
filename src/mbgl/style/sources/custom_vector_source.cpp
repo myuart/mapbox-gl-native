@@ -33,5 +33,13 @@ void CustomVectorSource::setTileData(const CanonicalTileID& tileID,
     loader->setTileData(tileID, data);
 }
 
+void CustomVectorSource::invalidateTile(const CanonicalTileID& tileID) {
+    loader->invalidateTile(tileID);
+}
+
+void CustomVectorSource::invalidateRegion(const LatLngBounds& bounds) {
+    loader->invalidateRegion(bounds, impl().getZoomRange());
+}
+    
 } // namespace style
 } // namespace mbgl
