@@ -135,4 +135,12 @@
     _dataSource = dataSource;
 }
 
+- (void) invalidateBounds:(MGLCoordinateBounds)bounds {
+    ((mbgl::style::CustomVectorSource *)self.rawSource)->invalidateRegion(MGLLatLngBoundsFromCoordinateBounds(bounds));
+}
+
+- (void) invalidateTileAtX:(NSUInteger)x y:(NSUInteger)y zoomLevel:(NSUInteger)z {
+    ((mbgl::style::CustomVectorSource *)self.rawSource)->invalidateTile(mbgl::CanonicalTileID(z, x, y));
+}
+
 @end

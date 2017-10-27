@@ -56,6 +56,9 @@ MGL_EXPORT
  */
 - (instancetype)initWithIdentifier:(NSString *)identifier options:(nullable NS_DICTIONARY_OF(MGLShapeSourceOption, id) *)options NS_DESIGNATED_INITIALIZER;
 
+- (void) invalidateBounds:(MGLCoordinateBounds)bounds;
+- (void) invalidateTileAtX:(NSUInteger)x y:(NSUInteger)y zoomLevel:(NSUInteger)z;
+
 /**
  An object that implements the `MGLComputedShapeSource` protocol that will be queried for tile data.
  */
