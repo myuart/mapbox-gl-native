@@ -64,7 +64,6 @@ namespace android {
         javaPeer->Call(*_env, cancelTile, (int)tileID.z, (int)tileID.x, (int)tileID.y);
     };
 
-
     void CustomVectorSource::setTileData(jni::JNIEnv& env, jni::jint z, jni::jint x, jni::jint y, jni::Object<geojson::FeatureCollection> jFeatures) {
         using namespace mbgl::android::geojson;
 
@@ -73,6 +72,14 @@ namespace android {
 
         // Update the core source
         source.as<mbgl::style::CustomVectorSource>()->CustomVectorSource::setTileData(CanonicalTileID(z, x, y), GeoJSON(geometry));
+    }
+
+    void CustomVectorSource::invalidateTile(jni::JNIEnv&, jni::jint z, jni::jint x, jni::jint y) {
+        source.as<mbgl::style::CustomVectorSource>()->CustomVectorSource::invalidateTile(CanonicalTileID(z, x, y));
+    }
+    void CustomVectorSource::invalidateBounds(jni::JNIEnv& env, jni::Object<LatLngBounds> jBounds) {
+        auto bounds = LatLngBounds::getLatLngBounds(env, jBounds);
+        source.as<mbgl::style::CustomVectorSource>()->CustomVectorSource::invalidateRegion(bounds);
     }
 
     jni::Array<jni::Object<geojson::Feature>> CustomVectorSource::querySourceFeatures(jni::JNIEnv& env,
@@ -107,7 +114,9 @@ namespace android {
             "initialize",
             "finalize",
             METHOD(&CustomVectorSource::querySourceFeatures, "querySourceFeatures"),
-            METHOD(&CustomVectorSource::setTileData, "setTileData")
+            METHOD(&CustomVectorSource::setTileData, "nativeSetTileData"),
+            METHOD(&CustomVectorSource::invalidateTile, "nativeInvalidateTile"),
+            METHOD(&CustomVectorSource::invalidateBounds, "nativeInvalidateBounds")
         );
     }
 

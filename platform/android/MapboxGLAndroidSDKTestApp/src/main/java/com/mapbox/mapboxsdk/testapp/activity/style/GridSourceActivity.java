@@ -12,7 +12,7 @@ import com.mapbox.mapboxsdk.maps.MapboxMap;
 import com.mapbox.mapboxsdk.maps.OnMapReadyCallback;
 import com.mapbox.mapboxsdk.style.layers.LineLayer;
 import com.mapbox.mapboxsdk.style.sources.CustomVectorSource;
-import com.mapbox.mapboxsdk.style.sources.TileProvider;
+import com.mapbox.mapboxsdk.style.sources.GeometryTileProvider;
 import com.mapbox.mapboxsdk.testapp.R;
 import com.mapbox.services.commons.geojson.Feature;
 import com.mapbox.services.commons.geojson.FeatureCollection;
@@ -32,7 +32,7 @@ public class GridSourceActivity extends AppCompatActivity implements OnMapReadyC
   private MapboxMap mapboxMap;
   private CustomVectorSource source;
 
-  class GridProvider implements TileProvider {
+  class GridProvider implements GeometryTileProvider {
     public FeatureCollection getFeaturesForBounds(LatLngBounds bounds, int zoom) {
       List<Feature> features = new ArrayList<>();
       double gridSpacing;

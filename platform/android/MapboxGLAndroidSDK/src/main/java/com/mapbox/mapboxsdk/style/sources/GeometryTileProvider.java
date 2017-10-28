@@ -6,7 +6,8 @@ import com.mapbox.mapboxsdk.geometry.LatLngBounds;
 import com.mapbox.services.commons.geojson.FeatureCollection;
 import com.mapbox.services.commons.geojson.GeoJSON;
 
-public interface TileProvider {
+
+public interface GeometryTileProvider {
   @WorkerThread
   FeatureCollection getFeaturesForBounds(LatLngBounds bounds, int zoomLevel);
 }

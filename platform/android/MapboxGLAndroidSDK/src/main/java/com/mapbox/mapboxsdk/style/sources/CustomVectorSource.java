@@ -13,41 +13,14 @@ import com.mapbox.services.commons.geojson.FeatureCollection;
 import java.lang.ref.WeakReference;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
-
-class TileID {
-  public int z;
-  public int x;
-  public int y;
-  public TileID(int _z, int _x, int _y) {
-    z = _z;
-    x = _x;
-    y = _y;
-  }
-}
-
-class TileRequest implements Runnable {
-  private TileID id;
-  private TileProvider provider;
-  private WeakReference<CustomVectorSource> sourceRef;
-  public TileRequest(TileID _id, TileProvider p, CustomVectorSource _source) {
-    id = _id;
-    provider = p;
-    sourceRef = new WeakReference<>(_source);
-  }
-
-  public void run() {
-    FeatureCollection data = provider.getFeaturesForBounds(LatLngBounds.from(id.z, id.x, id.y), id.z);
-    CustomVectorSource source = sourceRef.get();
-    if(source != null) {
-      source.setTileData(id, data);
-    }
-  }
-}
+import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
  * Custom Vector Source, allows using FeatureCollections.
@@ -57,26 +30,18 @@ class TileRequest implements Runnable {
 public class CustomVectorSource extends Source {
   private BlockingQueue requestQueue;
   private ThreadPoolExecutor executor;
-  private TileProvider provider;
-
-  /**
-   * Internal use
-   *
-   * @param nativePtr - pointer to native peer
-   */
-  public CustomVectorSource(long nativePtr) {
-    super(nativePtr);
-  }
+  private GeometryTileProvider provider;
+  private Map<TileID, AtomicBoolean> cancelledTileRequests;
 
   /**
    * Create a CustomVectorSource
    *
    * @param id the source id
    */
-  public CustomVectorSource(String id, TileProvider provider_) {
+  public CustomVectorSource(String id, GeometryTileProvider provider_) {
     requestQueue = new ArrayBlockingQueue(80);
-    executor = new ThreadPoolExecutor(10, 10, 60, TimeUnit.SECONDS, requestQueue);
-
+    executor = new ThreadPoolExecutor(2, 2, 60, TimeUnit.SECONDS, requestQueue);
+    cancelledTileRequests = new HashMap<>();
     provider = provider_;
     initialize(this, id, new GeoJsonOptions());
   }
@@ -87,13 +52,19 @@ public class CustomVectorSource extends Source {
    * @param id      the source id
    * @param options options
    */
-  public CustomVectorSource(String id, TileProvider provider_, GeoJsonOptions options) {
+  public CustomVectorSource(String id, GeometryTileProvider provider_, GeoJsonOptions options) {
     provider = provider_;
     initialize(this, id, options);
   }
 
-  public void setTileData(TileID tileId, FeatureCollection data) {
-    setTileData(tileId.z, tileId.x, tileId.y, data);
+  /**
+   *  Invalidate previously provided features within a given bounds at all zoom levels.
+   *  Invoking this method will result in new requests to `GeometryTileProvider` for regions
+   *  that contain, include, or intersect with the provided bounds.
+   * @param bounds The region in which features should be invalidated at all zoom levels
+   */
+  public void invalidateRegion(LatLngBounds bounds) {
+    nativeInvalidateBounds(bounds);
   }
 
   /**
@@ -112,18 +83,92 @@ public class CustomVectorSource extends Source {
 
   private native Feature[] querySourceFeatures(Object[] filter);
 
-  private native void setTileData(int z, int x, int y, FeatureCollection data);
+  private native void nativeSetTileData(int z, int x, int y, FeatureCollection data);
+  private native void nativeInvalidateTile(int z, int x, int y);
+  private native void nativeInvalidateBounds(LatLngBounds bounds);
+
+  @Override
+  protected native void finalize() throws Throwable;
+
+  private void setTileData(TileID tileId, FeatureCollection data) {
+    cancelledTileRequests.remove(tileId);
+    nativeSetTileData(tileId.z, tileId.x, tileId.y, data);
+  }
 
   @WorkerThread
-  public void fetchTile(int z, int x, int y) {
-    TileRequest request = new TileRequest(new TileID(z, x, y), provider, this);
+  private void fetchTile(int z, int x, int y) {
+    AtomicBoolean cancelFlag = new AtomicBoolean(false);
+    TileID tileID = new TileID(z, x, y);
+    cancelledTileRequests.put(tileID, cancelFlag);
+    GeometryTileRequest request = new GeometryTileRequest(tileID, provider, this, cancelFlag);
     executor.execute(request);
   }
 
   @WorkerThread
-  public void cancelTile(int z, int x, int y) {
+  private void cancelTile(int z, int x, int y) {
+    AtomicBoolean cancelFlag = cancelledTileRequests.get(new TileID(z,x,y));
+    if (cancelFlag != null) {
+      cancelFlag.compareAndSet(false, true);
+    }
   }
 
-  @Override
-  protected native void finalize() throws Throwable;
+  class TileID {
+    public int z;
+    public int x;
+    public int y;
+    public TileID(int _z, int _x, int _y) {
+      z = _z;
+      x = _x;
+      y = _y;
+    }
+
+    public int hashCode() {
+      return Arrays.hashCode(new int[]{z, x, y});
+    }
+
+    public boolean equals(Object object) {
+      if (object == this) {
+        return true;
+      }
+
+      if (object == null || getClass() != object.getClass()) {
+        return false;
+      }
+
+      if(object instanceof TileID) {
+        TileID other = (TileID)object;
+        return this.z == other.z && this.x == other.x && this.y == other.y;
+      }
+      return false;
+    }
+  }
+
+  class GeometryTileRequest implements Runnable {
+    private TileID id;
+    private GeometryTileProvider provider;
+    private WeakReference<CustomVectorSource> sourceRef;
+    private AtomicBoolean cancelled;
+    public GeometryTileRequest(TileID _id, GeometryTileProvider p, CustomVectorSource _source, AtomicBoolean _cancelled) {
+      id = _id;
+      provider = p;
+      sourceRef = new WeakReference<>(_source);
+      cancelled = _cancelled;
+    }
+
+    public void run() {
+      if (isCancelled()) {
+        return;
+      }
+
+      FeatureCollection data = provider.getFeaturesForBounds(LatLngBounds.from(id.z, id.x, id.y), id.z);
+      CustomVectorSource source = sourceRef.get();
+      if(!data.getFeatures().isEmpty() && source != null && !isCancelled())  {
+        source.setTileData(id, data);
+      }
+    }
+
+    private Boolean isCancelled() {
+      return cancelled.get();
+    }
+  }
 }
